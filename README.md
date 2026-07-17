@@ -1,6 +1,7 @@
 # laravel-purl2cpe
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=VCWHQPACTXV5N)
 
 Convert [Package URLs (PURLs)](https://github.com/package-url/purl-spec) to
 [CPE](https://nvd.nist.gov/products/cpe) names in Laravel, backed by the
@@ -172,6 +173,16 @@ composer test
 
 - Mapping data: [scanoss/purl2cpe](https://github.com/scanoss/purl2cpe) (MIT)
 - CPE and PURL are specifications of NIST and the Package URL project respectively.
+
+## Support
+
+If this package saves you time, consider supporting its development:
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/gumslone" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+</p>
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=VCWHQPACTXV5N)
 
 ## License
 
