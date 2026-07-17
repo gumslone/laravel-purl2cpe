@@ -67,6 +67,35 @@ class Purl2Cpe
     }
 
     /**
+     * The CPE vendor and product for a PURL, from the best curated CPE.
+     * Null when the PURL is not in the catalog.
+     *
+     * @return array{vendor: string, product: string}|null
+     */
+    public function vendorProduct(string $purl): ?array
+    {
+        $cpe = $this->toCpe23($purl);
+
+        return $cpe ? $this->splitVendorProduct($cpe) : null;
+    }
+
+    /**
+     * Every distinct CPE vendor/product pair for a PURL (a package can map to
+     * more than one). Empty when the PURL is not in the catalog.
+     *
+     * @return array<array{vendor: string, product: string}>
+     */
+    public function vendorProducts(string $purl): array
+    {
+        $pairs = array_map(
+            fn (string $cpe) => $this->splitVendorProduct($cpe),
+            $this->candidates($purl),
+        );
+
+        return array_values(array_unique($pairs, SORT_REGULAR));
+    }
+
+    /**
      * Whether the PURL has at least one curated CPE mapping.
      */
     public function isMapped(string $purl): bool
@@ -107,6 +136,18 @@ class Purl2Cpe
         $uri = "cpe:/{$part}:{$vendor}:{$product}";
 
         return $version !== '*' ? "{$uri}:{$version}" : $uri;
+    }
+
+    /**
+     * Extract the vendor (field 4) and product (field 5) of a CPE 2.3 string.
+     *
+     * @return array{vendor: string, product: string}
+     */
+    public function splitVendorProduct(string $cpe23): array
+    {
+        $parts = explode(':', $cpe23);
+
+        return ['vendor' => $parts[3] ?? '', 'product' => $parts[4] ?? ''];
     }
 
     /**

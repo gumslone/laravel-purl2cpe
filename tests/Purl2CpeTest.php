@@ -35,6 +35,24 @@ it('resolves a purl to a versioned CPE 2.3 and 2.2', function () {
         ->and($service->isMapped('pkg:composer/acme/unknown'))->toBeFalse();
 });
 
+it('converts a purl to its CPE vendor and product', function () {
+    seedMappings([
+        ['pkg:composer/laravel/framework', 'cpe:2.3:a:laravel:framework:*:*:*:*:*:*:*:*'],
+        ['pkg:gem/http', 'cpe:2.3:a:httprb:http:*:*:*:*:*:*:*:*'],
+        ['pkg:gem/http', 'cpe:2.3:a:http.rb_project:http.rb:*:*:*:*:*:*:*:*'],
+    ]);
+
+    $service = app(Purl2Cpe::class);
+
+    expect($service->vendorProduct('pkg:composer/laravel/framework@11.55.0'))
+        ->toBe(['vendor' => 'laravel', 'product' => 'framework'])
+        ->and($service->vendorProduct('pkg:composer/acme/unknown@1.0'))->toBeNull()
+        ->and($service->vendorProducts('pkg:gem/http'))->toBe([
+            ['vendor' => 'http.rb_project', 'product' => 'http.rb'],
+            ['vendor' => 'httprb', 'product' => 'http'],
+        ]);
+});
+
 it('returns every vendor:product candidate for a purl', function () {
     seedMappings([
         ['pkg:gem/http', 'cpe:2.3:a:httprb:http:*:*:*:*:*:*:*:*'],

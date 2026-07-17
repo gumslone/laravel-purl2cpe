@@ -67,6 +67,19 @@ Purl2Cpe::candidates('pkg:gem/http@5.0.0', '5.0.0');
 Purl2Cpe::isMapped('pkg:composer/laravel/framework@11.55.0'); // true
 ```
 
+Just need the CPE **vendor and product** for a PURL?
+
+```php
+Purl2Cpe::vendorProduct('pkg:composer/laravel/framework');
+// ['vendor' => 'laravel', 'product' => 'framework']
+
+Purl2Cpe::vendorProduct('pkg:npm/chart.js');
+// ['vendor' => 'chartjs', 'product' => 'chart.js']
+
+Purl2Cpe::vendorProducts('pkg:gem/http');
+// [['vendor' => 'httprb', 'product' => 'http'], ['vendor' => 'http.rb_project', 'product' => 'http.rb']]
+```
+
 Or inject the service:
 
 ```php
@@ -93,7 +106,9 @@ field 6 of the CPE. If you omit the version you get the wildcard-version CPE.
 | --- | --- | --- |
 | `toCpe23($purl, $version = null)` | `?string` | Best curated CPE 2.3, version injected |
 | `toCpe22Uri($purl, $version = null)` | `?string` | Best curated CPE 2.2 URI |
-| `candidates($purl, $version = null)` | `string[]` | All vendor:product candidates |
+| `vendorProduct($purl)` | `?array{vendor,product}` | CPE vendor + product for a PURL |
+| `vendorProducts($purl)` | `array<array{vendor,product}>` | All vendor/product pairs |
+| `candidates($purl, $version = null)` | `string[]` | All CPE candidates, version injected |
 | `isMapped($purl)` | `bool` | Whether the PURL is in the catalog |
 | `basePurl($purl)` | `string` | PURL with version/qualifiers stripped |
 | `injectVersion($baseCpe, $version)` | `string` | Substitute a version into a base CPE |
