@@ -1,0 +1,59 @@
+{
+    "name": "gumslone/laravel-purl2cpe",
+    "description": "PURL to CPE conversion for Laravel, backed by the curated scanoss/purl2cpe database. Ships ~47k reduced mappings so you can resolve NVD CPEs for a Package URL out of the box.",
+    "keywords": ["laravel", "purl", "cpe", "sbom", "vulnerability", "nvd", "security", "scanoss", "package-url"],
+    "homepage": "https://github.com/gumslone/laravel-purl2cpe",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Oleg",
+            "email": "oleg@jusaew.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/console": "^10.0|^11.0|^12.0",
+        "illuminate/database": "^10.0|^11.0|^12.0",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "ext-pdo": "*",
+        "ext-zlib": "*"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0|^10.0",
+        "pestphp/pest": "^2.0|^3.0"
+    },
+    "suggest": {
+        "ext-zip": "Required for `purl2cpe:sync` to download and rebuild mappings from the upstream database"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gumslone\\Purl2Cpe\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Gumslone\\Purl2Cpe\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Gumslone\\Purl2Cpe\\Purl2CpeServiceProvider"
+            ],
+            "aliases": {
+                "Purl2Cpe": "Gumslone\\Purl2Cpe\\Facades\\Purl2Cpe"
+            }
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
