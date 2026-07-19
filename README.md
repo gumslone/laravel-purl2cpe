@@ -20,23 +20,8 @@ substitutes the package version at lookup time.
 
 ## Installation
 
-Once published on [Packagist](https://packagist.org/):
-
 ```bash
 composer require gumslone/laravel-purl2cpe
-```
-
-Until then (or to track `master` directly), add the repository to your app's
-`composer.json` and require it:
-
-```jsonc
-"repositories": [
-    { "type": "vcs", "url": "https://github.com/gumslone/laravel-purl2cpe" }
-]
-```
-
-```bash
-composer require gumslone/laravel-purl2cpe:dev-master
 ```
 
 Run the migration and load the bundled mappings:
