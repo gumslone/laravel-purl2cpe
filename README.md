@@ -1,5 +1,6 @@
 # laravel-purl2cpe
 
+[![tests](https://github.com/gumslone/laravel-purl2cpe/actions/workflows/tests.yml/badge.svg)](https://github.com/gumslone/laravel-purl2cpe/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=VCWHQPACTXV5N)
 
