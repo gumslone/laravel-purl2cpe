@@ -110,6 +110,7 @@ field 6 of the CPE. If you omit the version you get the wildcard-version CPE.
 | `toCpe22Uri($purl, $version = null)` | `?string` | Best curated CPE 2.2 URI |
 | `vendorProduct($purl)` | `?array{vendor,product}` | CPE vendor + product for a PURL |
 | `vendorProducts($purl)` | `array<array{vendor,product}>` | All vendor/product pairs |
+| `splitVendorProduct($cpe23)` | `array{vendor,product}` | Vendor + product of a CPE 2.3 string |
 | `candidates($purl, $version = null)` | `string[]` | All CPE candidates, version injected |
 | `isMapped($purl)` | `bool` | Whether the PURL is in the catalog |
 | `basePurl($purl)` | `string` | PURL with version/qualifiers stripped |
