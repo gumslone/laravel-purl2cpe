@@ -109,3 +109,75 @@ it('rebuilds mappings from an upstream-shaped sqlite source', function () {
 
     @unlink($path);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Heuristic fallback
+|--------------------------------------------------------------------------
+*/
+
+it('does not guess a CPE by default when the catalog misses', function () {
+    $service = app(Purl2Cpe::class);
+
+    expect($service->toCpe23('pkg:composer/acme/widget@1.0', '1.0'))->toBeNull()
+        ->and($service->candidates('pkg:composer/acme/widget@1.0', '1.0'))->toBe([])
+        ->and($service->vendorProduct('pkg:composer/acme/widget'))->toBeNull();
+});
+
+it('derives a heuristic CPE from the purl when fallback is enabled per call', function () {
+    $service = app(Purl2Cpe::class);
+
+    expect($service->toCpe23('pkg:composer/acme/widget@1.2.3', '1.2.3', true))
+        ->toBe('cpe:2.3:a:acme:widget:1.2.3:*:*:*:*:*:*:*')
+        ->and($service->toCpe22Uri('pkg:composer/acme/widget@1.2.3', '1.2.3', true))
+        ->toBe('cpe:/a:acme:widget:1.2.3')
+        ->and($service->vendorProduct('pkg:composer/acme/widget', true))
+        ->toBe(['vendor' => 'acme', 'product' => 'widget']);
+});
+
+it('honours the config flag for heuristic fallback', function () {
+    config()->set('purl2cpe.heuristic_fallback', true);
+
+    expect(app(Purl2Cpe::class)->toCpe23('pkg:pypi/django@5.0', '5.0'))
+        ->toBe('cpe:2.3:a:django:django:5.0:*:*:*:*:*:*:*');
+});
+
+it('prefers a curated mapping over a heuristic guess', function () {
+    seedMappings([['pkg:composer/laravel/framework', 'cpe:2.3:a:laravel:framework:*:*:*:*:*:*:*:*']]);
+
+    // Even with fallback on, the real mapping wins (curated vendor "laravel").
+    $result = app(Purl2Cpe::class)->resolve('pkg:composer/laravel/framework@11.0', '11.0', true);
+
+    expect($result['source'])->toBe('curated')
+        ->and($result['cpe'])->toBe('cpe:2.3:a:laravel:framework:11.0:*:*:*:*:*:*:*');
+});
+
+it('reports the heuristic source when the catalog misses', function () {
+    $result = app(Purl2Cpe::class)->resolve('pkg:composer/acme/widget@1.0', '1.0', true);
+
+    expect($result['source'])->toBe('heuristic')
+        ->and($result['cpe'])->toBe('cpe:2.3:a:acme:widget:1.0:*:*:*:*:*:*:*');
+
+    // And null all round when even a guess is impossible.
+    expect(app(Purl2Cpe::class)->resolve('pkg:npm/left-pad', null, false))
+        ->toBe(['cpe' => null, 'source' => null]);
+});
+
+it('infers vendor from an npm scope, a Go host path, and a bare name', function () {
+    $service = app(Purl2Cpe::class);
+
+    expect($service->heuristicCpe23('pkg:npm/%40babel/core@7.0', '7.0'))
+        // "@babel" scope -> vendor "babel", not "_babel"
+        ->toBe('cpe:2.3:a:babel:core:7.0:*:*:*:*:*:*:*')
+        ->and($service->heuristicVendorProduct('pkg:golang/github.com%2Fgin-gonic/gin'))
+        // Go module: owner after the host is the vendor
+        ->toBe(['vendor' => 'gin-gonic', 'product' => 'gin'])
+        ->and($service->heuristicCpe23('pkg:npm/left-pad@1.3.0', '1.3.0'))
+        // No namespace: the name doubles as the vendor
+        ->toBe('cpe:2.3:a:left-pad:left-pad:1.3.0:*:*:*:*:*:*:*');
+});
+
+it('returns null for a purl the heuristic cannot parse', function () {
+    expect(app(Purl2Cpe::class)->heuristicCpe23('not-a-purl'))->toBeNull()
+        ->and(app(Purl2Cpe::class)->heuristicVendorProduct('pkg:'))->toBeNull();
+});

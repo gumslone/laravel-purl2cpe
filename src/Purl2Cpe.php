@@ -16,6 +16,8 @@ use PDO;
  */
 class Purl2Cpe
 {
+    private ?HeuristicResolver $heuristic = null;
+
     /**
      * Strip version, qualifiers, and subpath from a PURL, leaving the base
      * `pkg:type/namespace/name` the mapping table is keyed on.
@@ -28,11 +30,14 @@ class Purl2Cpe
     /**
      * All curated CPE 2.3 candidates for a PURL, with the given version
      * substituted in. A package may map to several vendor:product pairs.
-     * Empty when the PURL is not in the catalog.
+     *
+     * When the PURL is not in the catalog and heuristic fallback is enabled
+     * (the `$heuristic` argument, or `purl2cpe.heuristic_fallback` config when
+     * null), a single guessed CPE is returned instead. Otherwise empty.
      *
      * @return string[]
      */
-    public function candidates(string $purl, ?string $version = null): array
+    public function candidates(string $purl, ?string $version = null, ?bool $heuristic = null): array
     {
         $base = $this->basePurl($purl);
 
@@ -42,41 +47,104 @@ class Purl2Cpe
             ->pluck('cpe')
             ->unique();
 
-        return $bases
+        $curated = $bases
             ->map(fn (string $cpe) => $this->injectVersion($cpe, $version))
             ->values()
             ->all();
+
+        if ($curated !== [] || ! $this->heuristicEnabled($heuristic)) {
+            return $curated;
+        }
+
+        $guess = $this->heuristic()->cpe23($purl, $version);
+
+        return $guess !== null ? [$guess] : [];
     }
 
     /**
-     * The best curated CPE 2.3 for a PURL, or null when unmapped.
+     * The best CPE 2.3 for a PURL — curated, or a heuristic guess when the
+     * catalog misses and fallback is enabled. Null when neither yields one.
      */
-    public function toCpe23(string $purl, ?string $version = null): ?string
+    public function toCpe23(string $purl, ?string $version = null, ?bool $heuristic = null): ?string
     {
-        return $this->candidates($purl, $version)[0] ?? null;
+        return $this->candidates($purl, $version, $heuristic)[0] ?? null;
     }
 
     /**
-     * The best curated CPE 2.2 URI for a PURL, or null when unmapped.
+     * The best CPE 2.2 URI for a PURL, with the same curated/heuristic
+     * behaviour as {@see toCpe23()}.
      */
-    public function toCpe22Uri(string $purl, ?string $version = null): ?string
+    public function toCpe22Uri(string $purl, ?string $version = null, ?bool $heuristic = null): ?string
     {
-        $cpe23 = $this->toCpe23($purl, $version);
+        $cpe23 = $this->toCpe23($purl, $version, $heuristic);
 
         return $cpe23 ? $this->cpe23ToCpe22($cpe23) : null;
     }
 
     /**
-     * The CPE vendor and product for a PURL, from the best curated CPE.
-     * Null when the PURL is not in the catalog.
+     * The CPE vendor and product for a PURL, from the best curated CPE, or a
+     * heuristic guess when the catalog misses and fallback is enabled. Null
+     * when neither yields a pair.
      *
      * @return array{vendor: string, product: string}|null
      */
-    public function vendorProduct(string $purl): ?array
+    public function vendorProduct(string $purl, ?bool $heuristic = null): ?array
     {
-        $cpe = $this->toCpe23($purl);
+        $cpe = $this->toCpe23($purl, null, $heuristic);
 
         return $cpe ? $this->splitVendorProduct($cpe) : null;
+    }
+
+    /**
+     * Resolve a PURL to a CPE 2.3 and report which strategy produced it, so a
+     * caller can record whether a CPE is authoritative (`curated`) or a guess
+     * (`heuristic`). `source` is null when nothing resolved.
+     *
+     * @return array{cpe: ?string, source: ?string}
+     */
+    public function resolve(string $purl, ?string $version = null, ?bool $heuristic = null): array
+    {
+        $curated = $this->candidates($purl, $version, false)[0] ?? null;
+        if ($curated !== null) {
+            return ['cpe' => $curated, 'source' => 'curated'];
+        }
+
+        if ($this->heuristicEnabled($heuristic)) {
+            $guess = $this->heuristic()->cpe23($purl, $version);
+            if ($guess !== null) {
+                return ['cpe' => $guess, 'source' => 'heuristic'];
+            }
+        }
+
+        return ['cpe' => null, 'source' => null];
+    }
+
+    /**
+     * A heuristic CPE 2.3 for a PURL, derived from its namespace and name with
+     * no catalog lookup. Always available regardless of the fallback config —
+     * use when you explicitly want a guess. Null when the PURL can't be parsed.
+     */
+    public function heuristicCpe23(string $purl, ?string $version = null): ?string
+    {
+        return $this->heuristic()->cpe23($purl, $version);
+    }
+
+    /**
+     * A heuristic CPE 2.2 URI for a PURL. See {@see heuristicCpe23()}.
+     */
+    public function heuristicCpe22Uri(string $purl, ?string $version = null): ?string
+    {
+        return $this->heuristic()->cpe22Uri($purl, $version);
+    }
+
+    /**
+     * The heuristic CPE vendor/product for a PURL, with no catalog lookup.
+     *
+     * @return array{vendor: string, product: string}|null
+     */
+    public function heuristicVendorProduct(string $purl): ?array
+    {
+        return $this->heuristic()->vendorProduct($purl);
     }
 
     /**
@@ -266,6 +334,20 @@ class Purl2Cpe
     private function sanitiseVersion(string $version): string
     {
         return ltrim($version, 'vV');
+    }
+
+    /**
+     * Whether heuristic fallback applies: the explicit argument when given,
+     * otherwise the `purl2cpe.heuristic_fallback` config (default off).
+     */
+    private function heuristicEnabled(?bool $override): bool
+    {
+        return $override ?? (bool) config('purl2cpe.heuristic_fallback', false);
+    }
+
+    private function heuristic(): HeuristicResolver
+    {
+        return $this->heuristic ??= new HeuristicResolver;
     }
 
     private function query(): \Illuminate\Database\Query\Builder

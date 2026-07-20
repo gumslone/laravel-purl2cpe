@@ -87,17 +87,58 @@ The version can be passed explicitly or read from the PURL — the base PURL
 (type/namespace/name) is used for the lookup and the version is injected into
 field 6 of the CPE. If you omit the version you get the wildcard-version CPE.
 
+### Heuristic fallback (optional)
+
+The curated catalog only covers packages that have a known NVD entry. For the
+rest, you can **optionally** derive a best-effort CPE straight from the PURL —
+vendor and product are inferred from its namespace and name:
+
+```php
+// Off by default: an unmapped PURL returns null
+Purl2Cpe::toCpe23('pkg:composer/acme/widget@1.2.3', '1.2.3'); // null
+
+// Opt in per call (3rd argument), or globally via config
+Purl2Cpe::toCpe23('pkg:composer/acme/widget@1.2.3', '1.2.3', heuristic: true);
+// "cpe:2.3:a:acme:widget:1.2.3:*:*:*:*:*:*:*"
+
+// npm scope -> vendor "babel"; Go module owner -> vendor "gin-gonic"
+Purl2Cpe::heuristicVendorProduct('pkg:npm/%40babel/core');            // ['vendor' => 'babel', 'product' => 'core']
+Purl2Cpe::heuristicVendorProduct('pkg:golang/github.com%2Fgin-gonic/gin'); // ['vendor' => 'gin-gonic', 'product' => 'gin']
+```
+
+A heuristic CPE is a **guess** that may match an NVD record, not an authoritative
+mapping. Use `resolve()` when you want to know which strategy produced a CPE so
+you can label or double-check the guessed ones:
+
+```php
+Purl2Cpe::resolve('pkg:composer/laravel/framework@11.0', '11.0', heuristic: true);
+// ['cpe' => 'cpe:2.3:a:laravel:framework:11.0:...', 'source' => 'curated']
+
+Purl2Cpe::resolve('pkg:composer/acme/widget@1.0', '1.0', heuristic: true);
+// ['cpe' => 'cpe:2.3:a:acme:widget:1.0:...', 'source' => 'heuristic']
+```
+
+Enable the fallback for every call by setting `purl2cpe.heuristic_fallback` to
+`true` (or `PURL2CPE_HEURISTIC_FALLBACK=true`). The per-call `$heuristic`
+argument always overrides the config. The `heuristic*` methods ignore the flag —
+they always guess — while the `resolve()`/`toCpe*`/`vendorProduct` methods only
+guess when the catalog misses.
+
 ## API
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `toCpe23($purl, $version = null)` | `?string` | Best curated CPE 2.3, version injected |
-| `toCpe22Uri($purl, $version = null)` | `?string` | Best curated CPE 2.2 URI |
-| `vendorProduct($purl)` | `?array{vendor,product}` | CPE vendor + product for a PURL |
-| `vendorProducts($purl)` | `array<array{vendor,product}>` | All vendor/product pairs |
+| `toCpe23($purl, $version = null, $heuristic = null)` | `?string` | Best CPE 2.3, version injected (heuristic on catalog miss) |
+| `toCpe22Uri($purl, $version = null, $heuristic = null)` | `?string` | Best CPE 2.2 URI |
+| `resolve($purl, $version = null, $heuristic = null)` | `array{cpe,source}` | CPE plus its `source`: `curated`, `heuristic`, or null |
+| `vendorProduct($purl, $heuristic = null)` | `?array{vendor,product}` | CPE vendor + product for a PURL |
+| `vendorProducts($purl)` | `array<array{vendor,product}>` | All curated vendor/product pairs |
+| `candidates($purl, $version = null, $heuristic = null)` | `string[]` | All CPE candidates, version injected |
+| `isMapped($purl)` | `bool` | Whether the PURL is in the curated catalog |
+| `heuristicCpe23($purl, $version = null)` | `?string` | Guess a CPE 2.3 from the PURL, no lookup |
+| `heuristicCpe22Uri($purl, $version = null)` | `?string` | Guess a CPE 2.2 URI from the PURL |
+| `heuristicVendorProduct($purl)` | `?array{vendor,product}` | Guess vendor + product from the PURL |
 | `splitVendorProduct($cpe23)` | `array{vendor,product}` | Vendor + product of a CPE 2.3 string |
-| `candidates($purl, $version = null)` | `string[]` | All CPE candidates, version injected |
-| `isMapped($purl)` | `bool` | Whether the PURL is in the catalog |
 | `basePurl($purl)` | `string` | PURL with version/qualifiers stripped |
 | `injectVersion($baseCpe, $version)` | `string` | Substitute a version into a base CPE |
 | `cpe23ToCpe22($cpe23)` | `string` | Convert a 2.3 string to a 2.2 URI |
