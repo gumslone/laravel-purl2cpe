@@ -127,10 +127,15 @@ class HeuristicResolver
             return $segments[1];
         }
 
-        // A single-segment namespace with a dot but no owner (bare host) is
-        // useless as a vendor — fall back to the name.
+        // A single-segment namespace with dots is either a reverse-DNS package
+        // group (Maven "org.apache.commons", "com.google.guava") or a bare host.
+        // For a reverse-DNS group (3+ labels) the vendor is conventionally the
+        // second label — apache, google — which matches how NVD names them.
+        // Shorter dotted namespaces are kept whole rather than guessed away.
         if (count($segments) === 1 && str_contains($segments[0], '.')) {
-            return $parsed['name'];
+            $labels = explode('.', $segments[0]);
+
+            return count($labels) >= 3 ? $labels[1] : $segments[0];
         }
 
         return $segments[0];

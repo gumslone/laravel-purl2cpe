@@ -177,6 +177,19 @@ it('infers vendor from an npm scope, a Go host path, and a bare name', function 
         ->toBe('cpe:2.3:a:left-pad:left-pad:1.3.0:*:*:*:*:*:*:*');
 });
 
+it('derives a Maven vendor from the reverse-DNS group', function () {
+    $service = app(Purl2Cpe::class);
+
+    // 3+ label groups: the second label is the conventional NVD-style vendor.
+    expect($service->heuristicVendorProduct('pkg:maven/org.apache.commons/commons-lang3'))
+        ->toBe(['vendor' => 'apache', 'product' => 'commons-lang3'])
+        ->and($service->heuristicVendorProduct('pkg:maven/com.google.guava/guava'))
+        ->toBe(['vendor' => 'google', 'product' => 'guava'])
+        // A short dotted group is kept whole rather than mis-guessed.
+        ->and($service->heuristicVendorProduct('pkg:maven/io.netty/netty-common'))
+        ->toBe(['vendor' => 'io.netty', 'product' => 'netty-common']);
+});
+
 it('returns null for a purl the heuristic cannot parse', function () {
     expect(app(Purl2Cpe::class)->heuristicCpe23('not-a-purl'))->toBeNull()
         ->and(app(Purl2Cpe::class)->heuristicVendorProduct('pkg:'))->toBeNull();
